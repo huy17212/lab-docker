@@ -1,0 +1,21 @@
+FROM gradle:7.5.0-jdk17 AS builder
+WORKDIR /app
+
+COPY . .
+
+RUN gradle build --no-daemon
+
+
+FROM eclipse-temurin:17-jdk as layer
+WORKDIR /app
+COPY --from=builder /app/build/libs/*.jar app.jar
+RUN java -Djarmode=layertools -jar ./app.jar extract
+
+FROM eclipse-temurin:17-jdk
+COPY --from=layer /app/dependencies/ ./
+COPY --from=layer /app/spring-boot-loader/ ./
+COPY --from=layer /app/snapshot-dependencies/ ./
+COPY --from=layer /app/application/ ./
+EXPOSE 8085
+
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
